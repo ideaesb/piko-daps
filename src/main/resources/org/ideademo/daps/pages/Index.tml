@@ -5,7 +5,7 @@
 <body>
     <ul id="nav">
      <li><a href="../index.php"><span>Home</span></a></li>
-     <li id="nav-1"><t:pagelink page="prop:componentResources.pageName">D a t a&nbsp;&nbsp; &amp;&nbsp;&nbsp; P r o d u c t s</t:pagelink></li>
+     <li id="nav-1"><t:pagelink page="prop:componentResources.pageName"><u>Data &amp; Products</u></t:pagelink></li>
      <li><a href="/paws" title="paws"><span>Projects &amp; Activities</span></a></li>
      <li><a href="/assessments" title="assesments"><span>Assessments</span></a></li>
      <li><a href="/partners" title="programs"><span>Partners &amp; Programs</span></a></li>
