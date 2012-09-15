@@ -7,6 +7,7 @@ import java.util.Vector;
 
 import org.apache.tapestry5.PersistenceConstants;
 
+import org.apache.tapestry5.annotations.PageActivationContext;
 import org.apache.tapestry5.annotations.Property;
 import org.apache.tapestry5.annotations.Persist;
 
@@ -79,6 +80,7 @@ public class Index
   // the regions select box
   @Property
   @Persist (PersistenceConstants.FLASH)
+  @PageActivationContext 
   private Regions regions;
   
   public enum Regions
