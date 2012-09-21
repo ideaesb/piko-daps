@@ -3,6 +3,7 @@ package org.ideademo.daps.pages;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.StringTokenizer;
 import java.util.Vector;
 
 import org.apache.tapestry5.PersistenceConstants;
@@ -24,7 +25,10 @@ import org.hibernate.criterion.MatchMode;
 
 import org.hibernate.search.FullTextSession;
 import org.hibernate.search.Search;
+
+import org.hibernate.search.query.dsl.BooleanJunction;
 import org.hibernate.search.query.dsl.QueryBuilder;
+import org.hibernate.search.query.dsl.TermMatchingContext;
 
 import org.ideademo.daps.entities.Dap;
 
@@ -60,7 +64,13 @@ public class Index
   
   @Inject
   private HibernateSessionManager sessionManager;
-
+  
+  @Property 
+  @Persist (PersistenceConstants.FLASH)
+  int retrieved; 
+  @Property 
+  @Persist (PersistenceConstants.FLASH)
+  int total;
   
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
   //  Select Boxes - Enumaration values - the user-visible labels are externalized in Index.properties 
@@ -122,9 +132,13 @@ public class Index
 	if (regions != null) onValueChangedFromRegions(regions.toString());
 	// at this point all the booleans in example have been set.
 	// NOTE/MAY BE TODO: Lucene dependency may be removed by setting the text search criteria into various text fields of the example. 
+    // Get all records anyway - for showing total at bottom of presentation layer
+    List <Dap> alst = session.createCriteria(Dap.class).list();
+    total = alst.size();
+
 	
-	// then makes lists and sublists as per the search criteria 
-	List<Dap> xlst=null; // xlst = Query by Example search List
+    // then makes lists and sublists as per the search criteria 
+    List<Dap> xlst=null; // xlst = Query by Example search List
     if(example != null)
     {
        Example ex = Example.create(example).excludeFalse().ignoreCase().enableLike(MatchMode.ANYWHERE);
@@ -134,12 +148,12 @@ public class Index
        
        if (xlst != null)
        {
-    	   logger.info("Example Search Result List Size  = " + xlst.size() );
+    	   logger.info("Dap Example Search Result List Size  = " + xlst.size() );
     	   Collections.sort(xlst);
        }
        else
        {
-         logger.info("Example Search result did not find any results...");
+         logger.info("Dap Example Search result did not find any results...");
        }
     }
     
@@ -157,12 +171,21 @@ public class Index
        }
       
        QueryBuilder qb = fullTextSession.getSearchFactory().buildQueryBuilder().forEntity( Dap.class ).get();
-       org.apache.lucene.search.Query luceneQuery = qb
-			    .keyword()
-			    .onFields("code","name","description", "keywords","contact", "organization", "url", "worksheet")
-			    .matching(searchText)
-			    .createQuery();
-      	  
+       
+       // fields being covered by text search 
+       TermMatchingContext onFields = qb
+		        .keyword()
+		        .onFields("code","name","description", "keywords","contact", "organization", "url", "worksheet");
+       
+       BooleanJunction<BooleanJunction> bool = qb.bool();
+       /////// Tokenize the search string for default AND logic ///
+       StringTokenizer st = new StringTokenizer(searchText);
+       while (st.hasMoreElements()) {
+    	   bool.must(onFields.matching(st.nextElement()).createQuery());
+       }
+       
+       org.apache.lucene.search.Query luceneQuery = bool.createQuery();
+       
        tlst = fullTextSession.createFullTextQuery(luceneQuery, Dap.class).list();
        if (tlst != null) 
        {
@@ -180,44 +203,68 @@ public class Index
     if (example == null && (searchText == null || searchText.trim().length() == 0))
     {
     	// Everything...
-    	List <Dap> alst = session.createCriteria(Dap.class).list(); // alst = List of all records 
     	if (alst != null && alst.size() > 0)
     	{
-    		logger.info ("Returing all " + alst.size() + " Dap records");
+    		logger.info ("Returing all " + alst.size() + " Daps records");
         	Collections.sort(alst);
     	}
     	else
     	{
     		logger.warn("No Dap records found in the database");
     	}
+    	retrieved = total;
         return alst; 
     }
     else if (xlst == null && tlst != null)
     {
     	// just text search results
-    	logger.info("Returing " + tlst.size() + " records as a result of PURE text search (no QBE) for " + searchText);
+    	logger.info("Returing " + tlst.size() + " Daps records as a result of PURE text search (no QBE) for " + searchText);
+    	retrieved = tlst.size();
     	return tlst;
     }
     else if (xlst != null && tlst == null)
     {
     	// just example query results
-    	logger.info("Returning " + xlst.size() + " records as a result ofPURE Query-By-Example (QBE), no text string");
+    	logger.info("Returning " + xlst.size() + " Daps records as a result of PURE Query-By-Example (QBE), no text string");
+    	retrieved = xlst.size();
     	return xlst;
     }
     else 
     {
+
+        ////////////////////////////////////////////
     	// get the INTERSECTION of the two lists
     	
     	// TRIVIAL: if one of them is empty, return the other
-    	if (xlst.size() == 0 && tlst.size() > 0) return tlst;
-    	if (tlst.size() == 0 && xlst.size() > 0) return xlst;
+    	// if one of them is empty, return the other
+    	if (xlst.size() == 0 && tlst.size() > 0)
+    	{
+        	logger.info("Returing " + tlst.size() + " Daps records as a result of ONLY text search, QBE pulled up ZERO records for " + searchText);
+        	retrieved = tlst.size();
+    		return tlst;
+    	}
+
+    	if (tlst.size() == 0 && xlst.size() > 0)
+    	{
+        	logger.info("Returning " + xlst.size() + " Daps records as a result of ONLY Query-By-Example (QBE), text search pulled up NOTHING for string " + searchText);
+        	retrieved = xlst.size();
+	        return xlst;
+    	}
     	
     	
     	List <Dap> ivec = new Vector<Dap>();
     	// if both are empty, return this Empty vector. 
-    	if (xlst.size() == 0 && tlst.size() == 0) return ivec; 
+    	if (xlst.size() == 0 && tlst.size() == 0)
+    	{
+        	logger.info("Neither QBE nor text search for string " + searchText +  " pulled up ANY Daps Records.");
+        	retrieved = 0;
+    		return ivec;
+    	}
     	
-    	// now deal with BOTH text and QBE being non-empty lists - by Id
+
+
+    	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    	// now deal with BOTH text and QBE being non-empty lists - implementing intersection by Database Primary Key -  Id
     	Iterator<Dap> xiterator = xlst.iterator();
     	while (xiterator.hasNext()) 
     	{
@@ -240,6 +287,8 @@ public class Index
     	}
     	// sort again - 
     	if (ivec.size() > 0)  Collections.sort(ivec);
+    	logger.info("Returning " + ivec.size() + " Daps records from COMBINED (text, QBE) Search");
+    	retrieved = ivec.size();
     	return ivec;
     }
     
