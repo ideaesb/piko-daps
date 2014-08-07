@@ -70,7 +70,7 @@ public class Index
   
   /////////////////////////////
   //  Drives QBE Search
-  @Persist (PersistenceConstants.FLASH)
+  @Persist
   private Dap example;
   
   
@@ -82,7 +82,7 @@ public class Index
 
     
   @Property
-  @Persist (PersistenceConstants.FLASH)
+  @Persist
   private String searchText;
 
   @Inject
@@ -92,10 +92,10 @@ public class Index
   private HibernateSessionManager sessionManager;
   
   @Property 
-  @Persist (PersistenceConstants.FLASH)
+  @Persist
   int retrieved; 
   @Property 
-  @Persist (PersistenceConstants.FLASH)
+  @Persist
   int total;
   
   
@@ -116,7 +116,7 @@ public class Index
   
   // the ECV select box
   @Property
-  @Persist (PersistenceConstants.FLASH)
+  @Persist
   private Ecv ecv;
   
   public enum Ecv
@@ -127,7 +127,7 @@ public class Index
 
   // the regions select box
   @Property
-  @Persist (PersistenceConstants.FLASH)
+  @Persist
   @PageActivationContext 
   private Regions regions;
   
@@ -140,7 +140,7 @@ public class Index
   
   // the TIMESCALE select box
   @Property
-  @Persist (PersistenceConstants.FLASH)
+  @Persist
   private Daptype daptype;
   
   public enum Daptype
